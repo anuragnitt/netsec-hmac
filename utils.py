@@ -6,14 +6,13 @@ class PKE:
     def __init__(self, header_size = 10):
         self.HEADER_SIZE = header_size
 
-    def getRandomKey(self, b: int)-> None:
+    def randomKey(self, b: int)-> None:
         p = getPrime(b)
         q = getPrime(b)
         while p == q: q = getPrime(b)
         self.e = 0x10001
         self.n = p*q
-        phi = self.n-p-q+1
-        self.d = pow(self.e, -1, phi)
+        self.d = pow(self.e, -1, self.n-p-q+1)
 
     def sharePubKey(self)-> bytes:
         e = hex(self.e)[2:]

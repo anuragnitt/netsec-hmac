@@ -32,24 +32,19 @@ def share_hmac_key(s, pke):
 
     return hmac
 
-def interactive(s, aes, hmac):
-    try:
-        while True:
-            msg = input('\nMESSAGE: ')
-            if msg == 'exit': break
-            tamper = False
-            if msg.endswith('0'): tamper = True
+def communicate(s, msg: bytes, aes, hmac, _log=True):
+    tamper = False
+    if msg.endswith(b'@'): tamper = True
+    msg = aes.encrypt(pad(msg, AES.block_size))
+    mac = hmac.getMAC(msg)
 
-            msg = aes.encrypt(pad(msg.encode(), AES.block_size))
-            mac = hmac.getMAC(msg)
-            print(f'ENC: {msg.hex()}')
-            print(f'MAC: {mac.hex()}')
-            if tamper: msg = b'\x00' + msg[1:]
-            msg = mac + msg
-            send_data(s, msg)
+    if _log:
+        print(f'ENC: {msg.hex()}')
+        print(f'MAC: {mac.hex()}')
 
-    except Exception as e:
-        print(str(e))
+    if tamper: msg = b'\x00' + msg[1:]
+    msg = mac + msg
+    send_data(s, msg)
 
 def main():
 
@@ -60,11 +55,22 @@ def main():
     pke.recvPubKey(recv_data(s))
     print('\nReceived RSA public key')
     aes = share_aes_key(s, pke)
-    print('\nShared AES secret key')
+    print('Shared AES secret key')
     hmac = share_hmac_key(s, pke)
-    print('\nShared HMAC secret key')
+    print('Shared HMAC secret key')
+    cid = urandom(3)
+    communicate(s, cid, aes, hmac, 0)
+    print(f'Client ID: {cid.hex()}')
 
-    interactive(s, aes, hmac)
+    try:
+        while True:
+            msg = input('\nMESSAGE: ')
+            if msg == 'exit': break
+            communicate(s, msg.encode(), aes, hmac)
+
+    except Exception as e:
+        print(str(e))
+
     s.close()
 
 if __name__ == '__main__':
